@@ -1,13 +1,16 @@
-﻿using document_service.Database;
-using Microsoft.EntityFrameworkCore;
+﻿using System.Text;
+using document_service.Database;
+using document_service.Documents.Repositories;
 using document_service.Storage;
-using System.Text;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IDocumentStorage, LocalDocumentStorage>();
+builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddDbContext<DocumentDbContext>(options =>
 {
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -37,10 +40,23 @@ if (app.Environment.IsDevelopment())
         return Results.Ok(new { storageKey, text, size = content.Length });
     });
 
-    app.MapGet("/demo/read-file", async (IDocumentStorage storage, CancellationToken cancellationToken) =>
-    {
-        var storageKey = Guid.NewGuid().ToString("N");
-    });
+    app.MapGet("/demo/read-file/{storageKey}",
+        async ([FromRoute] string storageKey, IDocumentStorage storage, CancellationToken cancellationToken) =>
+        {
+            await using var fileStream = await storage.OpenReadAsync(storageKey, cancellationToken);
+            using var reader = new StreamReader(fileStream);
+            var text = await reader.ReadToEndAsync(cancellationToken);
+
+            return Results.Ok(new { storageKey, text });
+        });
+
+    app.MapDelete("/demo/delete-file/{storageKey}",
+        async ([FromRoute] string storageKey, IDocumentStorage storage, CancellationToken cancellationToken) =>
+        {
+            await storage.DeleteAsync(storageKey, cancellationToken);
+
+            return Results.NoContent();
+        });
 }
 
 app.UseHttpsRedirection();

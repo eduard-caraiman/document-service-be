@@ -87,25 +87,33 @@ public class LocalDocumentStorage : IDocumentStorage
     }
 
     // Va deschide fișierul identificat prin storageKey și va returna un flux pentru citire.
-    public async Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default)
+    public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default)
     {
         var filePath = GetFilePath(storageKey);
         cancellationToken.ThrowIfCancellationRequested();
 
-        await using var fileStream = new FileStream(filePath,
+        var fileStream = new FileStream(
+            filePath,
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
             bufferSize: 81920,
             useAsync: true);
 
-        return await Task.FromResult<Stream>(fileStream);
+        return Task.FromResult<Stream>(fileStream);
     }
 
     // Va elimina conținutul de pe disc pentru cheia primită.
-    // Ștergerea metadatelor din baza de date este responsabilitatea unei alte componente.
     public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        var filePath = GetFilePath(storageKey);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        return Task.CompletedTask;
     }
 }
