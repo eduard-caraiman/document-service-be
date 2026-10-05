@@ -1,6 +1,6 @@
-﻿using System.Text;
-using document_service.Database;
+﻿using document_service.Database;
 using document_service.Documents.Repositories;
+using document_service.Documents.Services;
 using document_service.Storage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IDocumentStorage, LocalDocumentStorage>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
+builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddDbContext<DocumentDbContext>(options =>
 {
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -22,43 +23,83 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
-
-    // Demonstrație temporară: salvează un text pe disc, fără metadate în baza de date.
-    app.MapPost("/demo/save", async (IDocumentStorage storage, CancellationToken cancellationToken) =>
-    {
-        // 1. Alegem textul și generăm numele intern al fișierului.
-        var text = "Salut";
-        var storageKey = Guid.NewGuid().ToString("N");
-
-        // 2. Transformăm textul în bytes și îi punem într-un flux de memorie.
-        using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
-
-        // 3. Apelăm codul din LocalDocumentStorage și așteptăm salvarea.
-        await storage.SaveAsync(storageKey, content, cancellationToken);
-
-        // 4. Confirmarea ajunge la client numai după încheierea salvării.
-        return Results.Ok(new { storageKey, text, size = content.Length });
-    });
-
-    app.MapGet("/demo/read-file/{storageKey}",
-        async ([FromRoute] string storageKey, IDocumentStorage storage, CancellationToken cancellationToken) =>
-        {
-            await using var fileStream = await storage.OpenReadAsync(storageKey, cancellationToken);
-            using var reader = new StreamReader(fileStream);
-            var text = await reader.ReadToEndAsync(cancellationToken);
-
-            return Results.Ok(new { storageKey, text });
-        });
-
-    app.MapDelete("/demo/delete-file/{storageKey}",
-        async ([FromRoute] string storageKey, IDocumentStorage storage, CancellationToken cancellationToken) =>
-        {
-            await storage.DeleteAsync(storageKey, cancellationToken);
-
-            return Results.NoContent();
-        });
 }
 
+
 app.UseHttpsRedirection();
+
+
+app.MapPost("/api/documents", async (
+    [FromForm] IFormFile file,
+    IDocumentService documentService,
+    CancellationToken cancellationToken) =>
+{
+    await using var content = file.OpenReadStream();
+
+    var document = await documentService.CreateAsync(
+        file.FileName,
+        file.ContentType,
+        file.Length,
+        content,
+        cancellationToken);
+
+    return Results.Created($"/api/documents/{document.Id}", document);
+}).DisableAntiforgery();
+
+
+app.MapGet("/api/documents/{id:guid}", async (
+    [FromRoute] Guid id,
+    IDocumentService documentService) =>
+{
+    var document = await documentService.GetByIdAsync(id);
+
+    if (document is null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(document);
+});
+
+app.MapGet("/api/documents/{id:guid}/download", async (
+    [FromRoute] Guid id,
+    IDocumentService documentService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await documentService.DownloadAsync(id, cancellationToken);
+
+    if (result is null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.File(
+        result.Value.Content,
+        result.Value.Document.ContentType,
+        result.Value.Document.FileName);
+});
+
+app.MapDelete("/api/documents/{id:guid}", async (
+    [FromRoute] Guid id,
+    IDocumentService documentService,
+    CancellationToken cancellationToken) =>
+{
+    var deleted = await documentService.DeleteAsync(id, cancellationToken);
+
+    if (!deleted)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.NoContent();
+});
+
+app.MapGet("/api/documents", async (
+    IDocumentService documentService) =>
+{
+    var documents = await documentService.GetAllAsync();
+
+    return Results.Ok(documents);
+});
 
 app.Run();
