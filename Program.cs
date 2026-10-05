@@ -1,5 +1,6 @@
 ﻿using document_service.Database;
 using document_service.Documents.Repositories;
+using document_service.Documents.Responses;
 using document_service.Documents.Services;
 using document_service.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -43,7 +44,7 @@ app.MapPost("/api/documents", async (
         content,
         cancellationToken);
 
-    return Results.Created($"/api/documents/{document.Id}", document);
+    return Results.Created($"/api/documents/{document.Id}", GetDocumentResponse.From(document));
 }).DisableAntiforgery();
 
 
@@ -58,7 +59,7 @@ app.MapGet("/api/documents/{id:guid}", async (
         return Results.NotFound();
     }
 
-    return Results.Ok(document);
+    return Results.Ok(GetDocumentResponse.From(document));
 });
 
 app.MapGet("/api/documents/{id:guid}/download", async (
@@ -99,7 +100,7 @@ app.MapGet("/api/documents", async (
 {
     var documents = await documentService.GetAllAsync();
 
-    return Results.Ok(documents);
+    return Results.Ok(documents.Select(GetDocumentResponse.From));
 });
 
 app.Run();

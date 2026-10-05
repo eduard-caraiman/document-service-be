@@ -45,9 +45,29 @@ public class DocumentService : IDocumentService
             StorageKey = Guid.NewGuid().ToString("N"),
             CreatedAt = DateTime.UtcNow
         };
+        
+        
         await _documentStorage.SaveAsync(document.StorageKey, content, cancellationToken);
 
-        await _documentRepository.CreateAsync(document);
+
+        try
+        {
+            await _documentRepository.CreateAsync(document);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Nu s-au putut salva metadatele documentului {DocumentId}.",
+                document.Id);
+
+            await _documentStorage.DeleteAsync(
+                document.StorageKey,
+                CancellationToken.None);
+
+            throw;
+        }
+
 
         return document;
     }

@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <Folder Include="Documents\Requests\" />
-    <Folder Include="Documents\Responses\" />
   </ItemGroup>
 
 </Project>
