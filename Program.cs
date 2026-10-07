@@ -40,8 +40,10 @@ builder.Services.AddSingleton<IConnection>(serviceProvider =>
     return factory.CreateConnectionAsync().GetAwaiter().GetResult();
 });
 
-builder.Services.AddHostedService<DocumentUploadConsumer>();
 builder.Services.AddScoped<IDocumentCreatedPublisher, RabbitMqDocumentCreatedPublisher>();
+builder.Services.AddScoped<IDocumentDeletedPublisher, RabbitMqDocumentDeletedPublisher>();
+builder.Services.AddHostedService<DocumentUploadConsumer>();
+builder.Services.AddHostedService<DocumentDeleteConsumer>();
 
 
 var app = builder.Build();
