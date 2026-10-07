@@ -1,0 +1,12 @@
+﻿bin/
+obj/
+.idea/
+.git/
+.vs/
+
+documents.db
+documents.db-shm
+documents.db-wal
+identifier.sqlite
+
+uploads/

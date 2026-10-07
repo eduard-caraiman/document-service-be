@@ -1,10 +1,12 @@
 ﻿using document_service.Database;
+using document_service.Documents.Messaging;
 using document_service.Documents.Repositories;
 using document_service.Documents.Responses;
 using document_service.Documents.Services;
 using document_service.Storage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +20,37 @@ builder.Services.AddDbContext<DocumentDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+builder.Services.AddSingleton<IConnection>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var rabbitMq = configuration.GetRequiredSection("RabbitMq");
+
+    var factory = new ConnectionFactory
+    {
+        HostName = rabbitMq["HostName"]
+                   ?? throw new InvalidOperationException("RabbitMQ HostName lipsește."),
+        Port = rabbitMq.GetValue<int>("Port"),
+        UserName = rabbitMq["UserName"]
+                   ?? throw new InvalidOperationException("RabbitMQ UserName lipsește."),
+        Password = rabbitMq["Password"]
+                   ?? throw new InvalidOperationException("RabbitMQ Password lipsește."),
+        AutomaticRecoveryEnabled = true
+    };
+
+    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+});
+
+builder.Services.AddHostedService<DocumentUploadConsumer>();
+builder.Services.AddScoped<IDocumentCreatedPublisher, RabbitMqDocumentCreatedPublisher>();
+
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<DocumentDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
