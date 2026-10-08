@@ -24,7 +24,11 @@ public class RabbitMqDocumentDeletedPublisher : IDocumentDeletedPublisher
             durable: true,
             exclusive: false,
             autoDelete: false,
-            arguments: null);
+            arguments: new Dictionary<string, object?>
+            {
+                ["x-dead-letter-exchange"] = "",
+                ["x-dead-letter-routing-key"] = DocumentMessageNames.DeletedRetryQueue
+            });
 
         var body = JsonSerializer.SerializeToUtf8Bytes(message);
         var properties = new BasicProperties { ContentType = "application/json", Persistent = true };
@@ -41,3 +45,4 @@ public class RabbitMqDocumentDeletedPublisher : IDocumentDeletedPublisher
             message.MessageId, message.DocumentId, message.TodoId);
     }
 }
+

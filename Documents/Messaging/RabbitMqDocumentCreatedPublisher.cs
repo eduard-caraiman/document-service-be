@@ -26,7 +26,11 @@ public class RabbitMqDocumentCreatedPublisher : IDocumentCreatedPublisher
             durable: true,
             exclusive: false,
             autoDelete: false,
-            arguments: null);
+            arguments: new Dictionary<string, object?>
+            {
+                ["x-dead-letter-exchange"] = "",
+                ["x-dead-letter-routing-key"] = DocumentMessageNames.CreatedRetryQueue
+            });
 
         var body = JsonSerializer.SerializeToUtf8Bytes(message);
 
