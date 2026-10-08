@@ -18,8 +18,4 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.20" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Documents\Requests\" />
-  </ItemGroup>
-
 </Project>
