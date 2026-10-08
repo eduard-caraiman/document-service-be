@@ -19,9 +19,7 @@ public static class DocumentMessageNames
     public const string DeleteDeadLetterQueue = "document.delete.requested.dead-letter";
 
     public const string CreatedRetryQueue = "document.created.retry";
-    public const string CreatedDeadLetterQueue = "document.created.dead-letter";
 
     public const string DeletedRetryQueue = "document.deleted.retry";
-    public const string DeletedDeadLetterQueue = "document.deleted.dead-letter";
 }
 
